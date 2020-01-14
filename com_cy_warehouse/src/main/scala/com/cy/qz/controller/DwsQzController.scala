@@ -19,6 +19,7 @@ object DwsQzController {
     HiveUtil.useSnappyCompression(sparkSession)
 
     val dt ="20190722"
+    //val dt = args(0)
     DwsQzService.saveDwsQzChapter(sparkSession,dt)
     DwsQzService.saveDwsQzCourse(sparkSession, dt)
     DwsQzService.saveDwsQzMajor(sparkSession, dt)

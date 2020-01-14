@@ -1,6 +1,6 @@
 package com.cy.qz.service
 
-import com.alibaba.fastjson.JSONObject
+import com.alibaba.fastjson.{JSON, JSONObject}
 import com.cy.qz.bean.{DwdQzPaperView, DwdQzPoint, DwdQzQuestion}
 import com.cy.util.ParseJsonData
 import org.apache.spark.SparkContext
@@ -68,7 +68,7 @@ object EtlDataService {
         val outchapterid = jsonObject.getIntValue("outchapterid")
         val dt = jsonObject.getString("dt")
         val dn = jsonObject.getString("dn")
-        (chapterid, chapterlistid, chaptername, sequence, showstatus, status, creator, createtime,
+        (chapterid, chapterlistid, chaptername, sequence, showstatus, creator, createtime,
           courseid, chapternum, outchapterid, dt, dn)
       })
     }).toDF().coalesce(1).write.mode(SaveMode.Append).insertInto("dwd.dwd_qz_chapter")

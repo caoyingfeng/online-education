@@ -17,9 +17,9 @@ object DwsQzService {
     val dwdQzPoint = QzChapterDao.getDwdQzPoint(sparkSession,dt)
     val dwdQzPointQuestion = QzChapterDao.getDwdQzPointQuestion(sparkSession,dt)
     //todo 2. 4张表进行join
-    val result: DataFrame = dwdQzChapter.join(dwdQzChapterList, Seq("chapterlistid", "dn"), "inner")
-      .join(dwdQzPoint, Seq("chapterid", "dn"), "inner")
-      .join(dwdQzPointQuestion, Seq("pointid", "dn"), "inner")
+    val result: DataFrame = dwdQzChapter.join(dwdQzChapterList, Seq("chapterlistid", "dn") )
+      .join(dwdQzPoint, Seq("chapterid", "dn"))
+      .join(dwdQzPointQuestion, Seq("pointid", "dn"))
     //todo 3.选出与表对应的字段组成插入表中
     result.select("chapterid", "chapterlistid", "chaptername", "sequence", "showstatus", "showstatus",
       "chapter_creator", "chapter_createtime", "chapter_courseid", "chapternum", "chapterallnum", "outchapterid", "chapterlistname",
@@ -89,12 +89,25 @@ object DwsQzService {
   //基于dws.dws_qz_chapter、dws.dws_qz_course、dws.dws_qz_major、dws.dws_qz_paper、dws.dws_qz_question、
   // dwd.dwd_qz_member_paper_question 合成宽表dw.user_paper_detail,使用spark sql和dataframe api操作
   def saveDwsUserPaperDetail(sparkSession: SparkSession,dt:String): Unit ={
-    val dwsQzChapter = UserPaperDetailDao.getDwsQzChapter(sparkSession,dt)
+    //需要删除重复列,或者重命名，否则会报错 org.apache.spark.sql.AnalysisException: Reference 'courseid' is ambiguous, could be: courseid#2565, courseid#2758.;
+   /* val dwsQzChapter = UserPaperDetailDao.getDwsQzChapter(sparkSession,dt)
     val dwsQzCourse = UserPaperDetailDao.getDwsQzCourse(sparkSession,dt)
     val dwsQzMajor = UserPaperDetailDao.getDwsQzMajor(sparkSession,dt)
     val dwsQzPaper = UserPaperDetailDao.getDwsQzPaper(sparkSession,dt)
     val dwsQzQuestion = UserPaperDetailDao.getDwsQzQuestion(sparkSession,dt)
-    val dwdQzMemberPaperQuestion = UserPaperDetailDao.getDwdQzMemberPaperQuestion(sparkSession,dt)
+    val dwdQzMemberPaperQuestion = UserPaperDetailDao.getDwdQzMemberPaperQuestion(sparkSession,dt)*/
+
+    val dwsQzChapter = UserPaperDetailDao.getDwsQzChapter(sparkSession,dt).drop("courseid")
+    val dwsQzCourse = UserPaperDetailDao.getDwsQzCourse(sparkSession,dt).withColumnRenamed("sitecourse_creator", "course_creator")
+      .withColumnRenamed("sitecourse_createtime", "course_createtime").drop("majorid")
+      .drop("chapterlistid").drop("pointlistid")
+
+    val dwsQzMajor = UserPaperDetailDao.getDwsQzMajor(sparkSession,dt)
+
+    val dwsQzPaper = UserPaperDetailDao.getDwsQzPaper(sparkSession,dt).drop("courseid")
+    val dwsQzQuestion = UserPaperDetailDao.getDwsQzQuestion(sparkSession,dt)
+    val dwdQzMemberPaperQuestion = UserPaperDetailDao.getDwdQzMemberPaperQuestion(sparkSession,dt).drop("paperid")
+      .withColumnRenamed("question_answer", "user_question_answer")
 
     dwdQzMemberPaperQuestion.join(dwsQzCourse, Seq("sitecourseid", "dn")).
       join(dwsQzChapter, Seq("chapterid", "dn")).join(dwsQzMajor, Seq("majorid", "dn"))

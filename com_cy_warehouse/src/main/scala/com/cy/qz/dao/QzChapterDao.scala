@@ -11,9 +11,9 @@ object QzChapterDao {
     * @create 2020-01-08 18:20
     */
   def getDwdQzChapter(sparkSession: SparkSession, dt: String) = {
-    sparkSession.sql("select chapterid,chapterlistid,chaptername,sequence,showstatus,status," +
+    sparkSession.sql("select chapterid,chapterlistid,chaptername,sequence,showstatus," +
       "creator as chapter_creator,createtime as chapter_createtime,courseid as chapter_courseid," +
-      "chapternum,outchapterid,dt,dn from dwd.dwd_qz_chapter where dt='$dt'")
+      s"chapternum,outchapterid,dt,dn from dwd.dwd_qz_chapter where dt='$dt'")
   }
 
   /**

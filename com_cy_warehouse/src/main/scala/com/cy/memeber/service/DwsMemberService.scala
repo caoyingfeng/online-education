@@ -29,19 +29,32 @@ object DwsMemberService {
     val frame: DataFrame = dwdMember.join(dwdMemberRegtype,dwdMember("uid") === dwdMemberRegtype("uid") && dwdMember("dn") === dwdMemberRegtype("dn"))
     //方式2 字段名称相等的情况下选用第二种方式更好，得到新的DataFrame,会将uid去重
     //left 与left_outer是一样的
-    val result: Dataset[DwsMember] = dwdMember.join(dwdMemberRegtype, Seq("uid", "dn"), "left")
-      .join(dwdBaseAd, Seq("ad_id", "dn"), "left_outer")
-      .join(dwdBaseWebsite, Seq("siteid", "dn"), "left_outer")
-      .join(dwdPcentermemPaymoney, Seq("uid", "dn"), "left_outer")
-      .join(dwdVipLevel, Seq("vip_id", "dn"), "left_outer")
+    //将小表进行广播
+    import org.apache.spark.sql.functions.broadcast
+    val result=dwdMember.join(dwdMemberRegtype, Seq("uid", "dn"), "left")
+      .join(broadcast(dwdBaseAd), Seq("ad_id", "dn"), "left_outer")
+      .join(broadcast(dwdBaseWebsite), Seq("siteid", "dn"), "left_outer")
+      .join(broadcast(dwdPcentermemPaymoney), Seq("uid", "dn"), "left_outer")
+      .join(broadcast(dwdVipLevel), Seq("vip_id", "dn"), "left_outer")
       //todo 3.选出与表对应的字段组成case class: DwsMember
       .select("uid", "ad_id", "fullname", "iconurl", "lastlogin", "mailaddr", "memberlevel", "password"
         , "paymoney", "phone", "qq", "register", "regupdatetime", "unitname", "userip", "zipcode", "appkey"
         , "appregurl", "bdp_uuid", "reg_createtime", "isranreg", "regsource", "regsourcename", "adname"
         , "siteid", "sitename", "siteurl", "site_delete", "site_createtime", "site_creator", "vip_id", "vip_level",
         "vip_start_time", "vip_end_time", "vip_last_modify_time", "vip_max_free", "vip_min_free", "vip_next_level"
-        , "vip_operator", "dt", "dn").as[DwsMember]
+        , "vip_operator", "dt", "dn").as[DwsMember]//.rdd
+    //rdd默认缓存在内存，如果内存不够，则一部分会缓存在内存中，剩下的会从血缘依赖处再去计算
+    //spark内存分为两部分：1.用于shuffle 计算 join groupby 2.storage存储数据
+    //spark1.6为静态分配 两部分呢内存比值固定，之后为动态分配
+    //不采用序列化时，rdd storage占用的内存为1.7G
+    //result.cache()
 
+    //采用kryo序列化后，rdd storage占用内存	269.6 MB，采用kryo序列化后，缓存级别需要加上SER
+   // result.persist(StorageLevel.MEMORY_ONLY_SER)
+
+    //采用DataSet默认的序列化方式，默认的缓存级别为 MEMORY_AND_DISK ，rdd storage占用内存29.3 MB
+    //result.cache()
+    //DataSet更改缓存级别 rdd storage占用内存28.8M
     result.persist(StorageLevel.MEMORY_AND_DISK_SER)
 
     //todo 4.按照 相同用户相同网站 聚合在一起,最终形成宽表
@@ -99,6 +112,7 @@ object DwsMemberService {
           vip_next_level, vip_operator, dt, dn)
       }
     resultData.show()
+    //result.foreach(println)
     while (true) {
       println("1")
     }
